@@ -48,7 +48,7 @@ set cindent              " 设置使用C/C++语言的自动缩进方式
 set cinoptions=g0,:0,N-s,(0    " 设置C/C++语言的具体缩进方式
 set smartindent          " 智能的选择对其方式
 filetype indent on       " 自适应不同语言的智能缩进
-set expandtab            " 将制表符扩展为空格
+" set expandtab            " 将制表符扩展为空格
 set tabstop=4            " 设置编辑时制表符占用空格数
 set shiftwidth=4         " 设置格式化时制表符占用空格数
 set softtabstop=4        " 设置4个空格为制表符
@@ -56,7 +56,13 @@ set smarttab             " 在行和段开始处使用制表符
 set nowrap               " 禁止折行
 set backspace=2          " 使用回车键正常处理indent,eol,start等
 set sidescroll=10        " 设置向右滚动字符数
-set nofoldenable         " 禁用折叠代码
+" set nofoldenable         " 禁用折叠代码
+set foldenable
+" set foldmethod=indent
+" set foldmethod=syntax
+" set foldmethod=expr
+set foldmethod=manual
+set foldcolumn=1
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " 代码补全
@@ -107,6 +113,35 @@ if has("gui_running")
     set showtabline=0           " 隐藏Tab栏
     set guicursor=n-v-c:ver5    " 设置光标为竖线
 endif
+
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" cscope设置
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+if has("cscope")
+    set csprg=/usr/bin/cscope
+    set csto=0
+    set cst
+    set csverb
+    set cspc=3
+    "add any database in current dir
+    if filereadable("cscope.out")
+        cs add cscope.out
+    endif
+endif
+
+if has("build_output")
+
+endif
+
+nmap <C-[>s :cs find s <C-R>=expand("<cword>")<CR><CR>
+nmap <C-[>g :cs find g <C-R>=expand("<cword>")<CR><CR>
+nmap <C-[>c :cs find c <C-R>=expand("<cword>")<CR><CR>
+nmap <C-[>t :cs find t <C-R>=expand("<cword>")<CR><CR>
+nmap <C-[>e :cs find e <C-R>=expand("<cword>")<CR><CR>
+nmap <C-[>f :cs find f <C-R>=expand("<cfile>")<CR><CR>
+nmap <C-[>i :cs find i ^<C-R>=expand("<cfile>")<CR><CR>
+nmap <C-[>d :cs find d <C-R>=expand("<cword>")<CR><CR>
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " 卸载默认插件UnPlug
@@ -160,6 +195,14 @@ Plug 'Shougo/echodoc.vim'
 Plug 'terryma/vim-smooth-scroll'
 Plug 'rhysd/clever-f.vim'
 Plug 'vim-scripts/indentpython.vim'
+Plug 'junegunn/fzf', { 'do': { -> fzf#install()  }  }
+Plug 'junegunn/fzf.vim'
+Plug 'MattesGroeger/vim-bookmarks'
+Plug 'mhartington/oceanic-next'
+Plug 'othree/yajs.vim'
+Plug 'HerringtonDarkholme/yats.vim'
+Plug 'othree/html5.vim'
+Plug 'christoomey/vim-system-copy'
 
 " 加载自定义插件
 if filereadable(expand($HOME . '/.vimrc.custom.plugins'))
@@ -167,6 +210,14 @@ if filereadable(expand($HOME . '/.vimrc.custom.plugins'))
 endif
 
 call plug#end()  
+
+" youcompleteme 卡顿
+" set timeoutlen=1 ttimeoutlen=0
+let g:syntastic_ignore_files=[".*\.py$"]
+
+" fzf
+nnoremap <leader>fo :Files<CR>
+nnoremap <leader>fif :Rg<CR>
 
 " load vim default plugin
 runtime macros/matchit.vim
@@ -266,6 +317,22 @@ let g:NERDTreeHighlightFolders = 1
 let g:NERDTreeHighlightFoldersFullName = 1 
 let g:NERDTreeDirArrowExpandable='▷'
 let g:NERDTreeDirArrowCollapsible='▼'
+let NERDTreeWinSize=45
+let NERDTreeShowHidden=1
+" Nerdtree config for wildignore
+set wildignore+=*.pyc,*.o,*.o.cmd,*.obj,*.svn,*.swp,*.class,*.hg,*.DS_Store,*.min.*,*.su
+let NERDTreeRespectWildIgnore=1
+nnoremap <leader>q :NERDTreeFind<CR>
+
+" vim-bookmarks
+highlight BookmarkSign ctermbg=NONE ctermfg=160
+highlight BookmarkLine ctermbg=194 ctermfg=NONE
+let g:bookmark_sign = '♥'
+let g:bookmark_highlight_lines = 0
+let g:bookmark_auto_close = 1
+let g:bookmark_save_per_working_dir = 1 "是否针对工作目录保存书签
+let g:bookmark_auto_save = 1 "是否自动保存书签
+"
 
 " YCM 屏蔽，导致vim卡顿
 " 如果不指定python解释器路径，ycm会自己搜索一个合适的(与编译ycm时使用的python版本匹配)
@@ -334,7 +401,8 @@ let g:Lf_WildIgnore = {
 let g:Lf_UseCache = 0
 
 " ack
-nnoremap <leader>F :Ack!<space>
+" nnoremap <leader>F :Ack!<space>
+nnoremap <leader>m :Ack!<space>
 
 " echodoc.vim
 let g:echodoc_enable_at_startup = 1
@@ -359,4 +427,55 @@ if filereadable(expand($HOME . '/.vimrc.custom.config'))
     source $HOME/.vimrc.custom.config
 endif
 
+
+"""""""""""""""""""""""""""新文件标题 """""""""""""""""""""""""""
+"新建.c,.h,.sh,.java文件，自动插入文件头 
+autocmd BufNewFile * exec ":call SetTitle()" 
+""定义函数SetTitle，自动插入文件头 
+func SetTitle()
+    "如果文件类型为.sh文件 
+    if &filetype == 'sh' 
+        call setline(1,"#!/bin/bash") 
+        call append(line("."),"############################") 
+        call append(line(".")+1, "# File Name: ".expand("%"))
+        call append(line(".")+2, "# Author : pengfei")
+        call append(line(".")+4, "# Email:pengfei.liu@anker.com")
+        call append(line(".")+6, "# Created Time: ".strftime("%c"))
+        call append(line(".")+7, "#########################")
+        call append(line(".")+8, "")
+
+    elseif &filetype == 'python'
+        call setline(1,"#!/usr/bin/env python")
+        call append(line("."),"############################")
+        call append(line(".")+1, "# File Name: ".expand("%"))
+        call append(line(".")+2, "# Author : pengfei")
+        call append(line(".")+3, "# Email:pengfei.liu@anker.com")
+        call append(line(".")+4, "# Created Time: ".strftime("%c"))
+        call append(line(".")+5, "#########################")
+        call append(line(".")+6, "")
+
+    else
+        call setline(1, "/*#################################################") 
+        call append(line("."),   "# File Name: ".expand("%")) 
+        call append(line(".")+1, "# File Name: ".expand("%"))
+        call append(line(".")+2, "# Author : pengfei")
+        call append(line(".")+3, "# Email:pengfei.liu@anker.com")
+        call append(line(".")+4, "# Created Time: ".strftime("%c"))
+        call append(line(".")+5, " #################################################**/") 
+        call append(line(".")+6, "")
+
+    endif
+
+    if &filetype == 'cpp'
+        " call append(line(".")+7, "#include")
+        call append(line(".")+8, "using namespace std;")
+        call append(line(".")+9, "")
+    endif
+    if &filetype == 'c'
+        " call append(line(".")+7, "#include")
+        call append(line(".")+8, "")
+    endif
+    "新建文件后，自动定位到文件末尾
+endfunc
+autocmd BufNewFile * normal G
 
